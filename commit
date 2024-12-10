@@ -1,4 +1,4 @@
 #!/bin/bash
 
-git add *
+git add commit *.txt *.toml *.md src bench
 git commit
