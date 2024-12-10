@@ -1,1 +1,7 @@
-Copyright (C) SymbalSoft A/S - All Rights Reserved
+Copyright (C) SymbalSoft A/S
+
+Permissions granted and prohibitions:
+You may use, copy and modify your copy of the software, but not distribute any modifications of the shared objects (shared libraries) found under the src directory and all distributions of the software must keep this license intact with this exact copyright notice.
+You may NOT try to recreate, illegally obtain, or distribute the source code of the shared libraries included through reverse engineering.
+
+The software may later be released by and only by the original author at the author's discretion.
