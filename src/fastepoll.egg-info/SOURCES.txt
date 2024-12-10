@@ -1,0 +1,10 @@
+LICENSE.txt
+README.md
+pyproject.toml
+src/fastepoll/__init__.py
+src/fastepoll/fastepoll.cpython-311-x86_64-linux-gnu.so
+src/fastepoll.egg-info/PKG-INFO
+src/fastepoll.egg-info/SOURCES.txt
+src/fastepoll.egg-info/dependency_links.txt
+src/fastepoll.egg-info/requires.txt
+src/fastepoll.egg-info/top_level.txt

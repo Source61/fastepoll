@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastepoll"
+authors = [{name = "Source61"}]
+description = "Fast asyncio and uvloop-replacement for Linux using multiprocess epoll and shared memory"
+license = {file = "LICENSE.txt"}
+readme = "README.md"
+version = "1.0.0"
+dependencies = [
+    'importlib-metadata; python_version=="3.11"',
+]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+fastepoll = ["*.so"]
