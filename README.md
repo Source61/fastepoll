@@ -6,6 +6,7 @@ Tools used: wrk with the parameters 120 connections over 6 threads.
 Hardware: server running on a 50% underclocked Intel Core Ultra 7 with 22 CPU threads.
 
 | Name | Requests per second | Connection type |
+| --- | --- | --- |
 | Asyncio | 14466 | close |
 | Uvloop | 30608 | close |
 | Fastepoll | 76072 | close |
