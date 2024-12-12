@@ -18,4 +18,4 @@ class WebServer(asyncio.Protocol):
   def eof_received(self):
     pass
 
-fastepoll.run_forever(WebServer, ":::80")
+fastepoll.run_forever(WebServer, ":::80", True)

@@ -1,10 +1,18 @@
 Metadata-Version: 2.1
 Name: fastepoll
-Version: 1.0.0
-Summary: Fast asyncio and uvloop-replacement for Linux using multiprocess epoll and shared memory
+Version: 1.0.1
+Summary: Fast asyncio and uvloop-replacement for Linux servers using multiprocess epoll and shared memory
 Author: Source61
-License: Copyright (C) SymbalSoft A/S - All Rights Reserved
+License: Copyright (C) SymbalSoft A/S
         
+        Permissions granted and prohibitions:
+        You may use, copy and modify your copy of the software, but not distribute any modifications of the shared objects (shared libraries) found under the src directory and all distributions of the software must keep this license intact with this exact copyright notice.
+        You may NOT try to recreate, illegally obtain, or distribute the source code of the shared libraries included through reverse engineering.
+        
+        The software may later be released by and only by the original author at the author's discretion.
+        
+Project-URL: GitHub, https://github.com/source61/fastepoll
+Project-URL: Changelogs, https://github.com/source61/fastepoll/CHANGELOGS.md
 Classifier: Programming Language :: Python :: 3.11
 Classifier: Programming Language :: Python :: 3 :: Only
 Description-Content-Type: text/markdown
