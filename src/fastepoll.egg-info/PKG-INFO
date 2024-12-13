@@ -35,6 +35,7 @@ Hardware: server running on a 50% underclocked Intel Core Ultra 7 with 22 CPU th
 | Uvloop | 134465 | keep-alive |
 | Nginx | 347217 | keep-alive |
 | Fastepoll | 408639 | keep-alive |
+| Fastepoll | went up from 116599 (keep-alive) to 321850 (keep-alive + desync) connections on slower hardware; to be tested on same hardware next week | keep-alive + desync |
 
 # Example code
 Note: this code won't reach benchmark performance above due to wrk being picky about required missing HTTP headers such as the date field. For the exact benchmark code used above check out bench directory.
