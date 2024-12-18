@@ -1,5 +1,5 @@
 #!/bin/bash
 
-git add commit *.txt *.toml *.md src bench
-strip -s src/fastepoll/.so
+git add commit *.txt *.toml *.md src bench build.sh
+strip -s src/fastepoll/*.so
 git commit

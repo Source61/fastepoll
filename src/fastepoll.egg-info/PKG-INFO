@@ -21,10 +21,11 @@ Requires-Dist: importlib-metadata; python_version == "3.11"
 
 # Description
 Fast epoll server for Python3 (asyncio and uvloop server replacement) w/ Linux and TCP-support only (for now).
+Main feature: It is able to handle more than 1M requests per second on regular physical hardware (e.g. a $1k laptop with an Intel Core Ultra 7 155H).
 
 # HTTP benchmarks
-Tools used: wrk with the parameters 120 connections over 6 threads.
-Hardware: server running on a 50% underclocked Intel Core Ultra 7 with 22 CPU threads.
+Hardware: laptop on a 50% underclocked Intel Core Ultra 7 with 22 CPU threads.
+Tools used: wrk with the parameters 120 connections over 8 threads for 1s (same results for longer durations).
 
 | Name | Requests per second | Connection type |
 | --- | --- | --- |
@@ -35,10 +36,11 @@ Hardware: server running on a 50% underclocked Intel Core Ultra 7 with 22 CPU th
 | Uvloop | 134465 | keep-alive |
 | Nginx | 347217 | keep-alive |
 | Fastepoll | 408639 | keep-alive |
-| Fastepoll | went up from 116599 (keep-alive) to 321850 (keep-alive + desync) connections on slower hardware; to be tested on same hardware next week | keep-alive + desync |
+| Fastepoll | 645017 | keep-alive + desync |
+| Fastepoll (100% CPU clock) | 1203882 | keep-alive + desync (100% CPU speed) |
 
 # Example code
-Note: this code won't reach benchmark performance above due to wrk being picky about required missing HTTP headers such as the date field. For the exact benchmark code used above check out bench directory.
+For benchmark code check the /bench directory out. This is just basic sample code.
 
 ```python
 import fastepoll
