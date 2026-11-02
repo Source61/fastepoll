@@ -1,7 +1,10 @@
-Copyright (C) SymbalSoft A/S
+Copyright (C) 2026 TaoSoft AS
 
 Permissions granted and prohibitions:
-You may use, copy and modify your copy of the software, but not distribute any modifications of the shared objects (shared libraries) found under the src directory and all distributions of the software must keep this license intact with this exact copyright notice.
+You may use, copy and modify your copy of the software, but not distribute any modifications of the shared objects (shared libraries) it includes (such as fastepoll/_fastepoll.abi3.so), and all distributions of the software must keep this license intact with this exact copyright notice.
 You may NOT try to recreate, illegally obtain, or distribute the source code of the shared libraries included through reverse engineering.
 
-The software may later be released by and only by the original author at the author's discretion.
+The software may later be released by and only by the copyright holder at the copyright holder's discretion.
+
+Disclaimer of warranty and limitation of liability:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
