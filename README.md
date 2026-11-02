@@ -1,6 +1,8 @@
 # fastepoll 2
 
-A multi-process epoll server core for Python on Linux, with an asyncio-compatible protocol API. It serves TCP, Unix stream sockets and UDP from one C++ event loop per worker process. A single `abi3` wheel runs on CPython 3.12 and newer.
+A multi-process epoll server core for Python on Linux, with an asyncio-compatible protocol API. It serves TCP, Unix stream sockets and UDP from one C++ event loop per worker: a process, or a thread on free-threaded Python. A single `abi3` wheel runs on CPython 3.12 and newer.
+
+For HTTP/1.1 and HTTP/2, use [Cypache](https://cypache.com), a security-first HTTP server for Python built on fastepoll.
 
 ## Install
 
@@ -11,8 +13,8 @@ python3 -m venv /srv/app/venv
 /srv/app/venv/bin/pip install fastepoll
 ```
 
-- **Python:** CPython 3.12 or newer, tested on 3.12 to 3.15. Debian 12 and Ubuntu 22.04 come with older ones, so get 3.12 first (on Ubuntu from the deadsnakes PPA, anywhere with uv or pyenv). pip won't install the wheel on free-threaded builds (`python3.14t`).
-- **System:** Linux 5.3 on x86-64 with glibc 2.34 and OpenSSL 3, or newer: Debian 12, Ubuntu 22.04, RHEL 9 and later. pip won't install it on an older glibc.
+- **Python:** CPython 3.12 or newer, tested on 3.12 to 3.15. Debian 12 and Ubuntu 22.04 come with older ones, so get 3.12 first (on Ubuntu from the deadsnakes PPA, anywhere with uv or pyenv). Free-threaded CPython (`python3.14t`, `python3.15t`) has no such stable binary interface yet, so it gets a wheel per version.
+- **System:** Linux 5.3 on x86-64 or aarch64 (ARM64) with glibc 2.34 and OpenSSL 3, or newer: Debian 12, Ubuntu 22.04, RHEL 9 and later. pip won't install it on an older glibc.
 
 ## Quick start
 
@@ -96,10 +98,15 @@ fastepoll.serve([fastepoll.TCP(Https, None, 443, tls=tls), fastepoll.TCP(Redirec
   - Private keys must be unencrypted; an encrypted key fails to load rather than prompting for a pass phrase.
 - **Handshake limits:** clients get `handshake_timeout` seconds (a `serve()` option, default 10) to finish. A stalled handshake costs about 60 KB and an fd until then, so public servers should also set `max_connections`.
 - **Connection details:** `get_extra_info()` adds `tls_version`, `cipher`, `alpn_protocol`, `server_name` (the client's SNI) and `ktls`. SNI is limited to printable ASCII at the handshake.
-- **Who reads the certificate files:** only the supervisor, at startup, on SIGHUP (`systemctl reload`) and at every ticket-key rotation. Workers load what passed its checks, also after a crash restart, so a half-written renewal is never served.
-- **Certificate renewal:** new connections get the new certificates and existing ones keep theirs. If the new files don't load, the previous certificates stay in use and the error is printed. For certbot: `--deploy-hook "systemctl reload yourservice"`.
+- **Who reads the certificate files:** only the supervisor, at startup, on SIGHUP (`systemctl reload`) and at every ticket-key rotation. Workers load what passed its checks, also after a crash restart, so a renewal that doesn't load is never served. Replace files by renaming new ones over them, as certbot does: a file read halfway through being rewritten in place can look whole, such as a chain without its intermediate yet.
+- **Certificate renewal:** new connections get the new certificates and existing ones keep theirs. If any of the new files doesn't load, all the previous ones stay in use, client CAs and CRLs included, and the error is printed. For certbot: `--deploy-hook "systemctl reload yourservice"`.
 - **SIGHUP** only ever reloads; it never stops the server, not even when a terminal closes.
 - **Session resumption:** TLS 1.3 sessions resume on any worker. The ticket keys are shared, rotate every `ticket_lifetime` seconds (default 3600) and on every reload, and tickets stay valid for one more rotation. TLS 1.2 clients get no tickets, as a TLS 1.2 ticket would carry the session's master secret. Only those that don't ask for tickets resume (from the worker's own session cache), so most TLS 1.2 clients do a full handshake each time.
+- **Client certificates (mTLS):** `TLS(..., client_ca="clients.pem")` makes clients present a certificate that chains to a root CA in that PEM file. Clients send their intermediates, or the file holds them. With `client_cert="optional"`, clients may also connect without one, but a certificate that is sent must still be valid.
+  - `get_extra_info("peercert")` gives the certificate as the same dict asyncio gives (`None` without one), and `get_extra_info("peercert_der")` its DER bytes. To admit only one intermediate's clients, check the dict's `issuer`.
+  - CRLs in the same file are checked against every certificate in a client's chain, so revoking an intermediate refuses all its clients. Every CA then needs a CRL, and once one expires, the clients it covers are refused: renew it and reload.
+  - The file is re-read along with the certificates. A session made under other CAs or CRLs doesn't resume, so a revoked client can't come back on an old session ticket.
+- **No OCSP stapling:** OCSP is being retired. The CA/Browser Forum made it optional, Let's Encrypt has shut its responders down, and revocation now goes through CRLs, which need nothing from the server.
 - **Truncation:** a peer that closes without TLS's `close_notify` looks like a normal EOF. Protocols should delimit their messages, as HTTP does with `Content-Length`.
 - **Kernel TLS:** the kernel does the encryption, and `sendfile()` stays zero-copy, where TLS 1.3 key updates work with it. That needs the kernel's `tls` module, a kernel that takes new keys on a live connection (Linux 6.14, or a backport; fastepoll tries it at startup), and OpenSSL 3.2 or newer. Otherwise OpenSSL encrypts, and `sendfile()` reads files in 64 KiB chunks.
   - Debian 13's stock 6.12 kernel and RHEL 9's can't take new keys; a 6.14+ kernel, such as Debian's from trixie-backports, can.
@@ -120,8 +127,8 @@ They also offer:
 - `transport.sendfile(file, offset=0, count=None)`: zero-copy sending of a regular file range, queued in order with writes. `file` is a file object or a file descriptor, and may be closed as soon as the call returns.
   - If the file shrinks before its bytes are sent, the connection is aborted with `OSError(EIO)`: the peer sees it end early, never a short file followed by later output. Replacing a file by renaming a new one over it is safe, since the queued copy keeps the old one.
   - Queued file bytes count toward the write buffer, so `pause_writing()` tells the protocol to stop taking requests.
-  - More than 16 queued files on one connection, or more than a quarter of the fd limit across a worker, raise `OSError(ENOBUFS)`.
-  - Protocols that serve files must honour `pause_writing()`, by calling `pause_reading()` until `resume_writing()`. Otherwise clients that never read can use up that worker-wide quota.
+  - More than 16 queued files on one connection, or more than a quarter of the fd limit across a process, raise `OSError(ENOBUFS)`.
+  - Protocols that serve files must honour `pause_writing()`, by calling `pause_reading()` until `resume_writing()`. Otherwise clients that never read can use up that process-wide quota.
   - Reading a file that isn't in the page cache blocks the worker on disk I/O, as any read would.
 
 As in asyncio, `write()` sends at once, so each call costs a system call (and with TLS, a record). Hand over pieces produced together, such as HTTP/2 frames, in one `write()` or `writelines()`: in a benchmark, a reply made of 21 small writes ran 10× slower than the same bytes in one.
@@ -130,9 +137,9 @@ Datagram transports provide `sendto(data, addr)`, `close`, `abort`, `is_closing`
 
 Differences from asyncio:
 
-- **No event loop object or coroutines.** Everything is a callback, plus `call_later()` and `call_soon_threadsafe()`.
+- **No coroutines.** Everything is a callback, plus `call_later()` and `call_soon_threadsafe()`. `get_running_loop()` gives the worker's loop, with just those two methods.
 - **An optional `shutdown_requested()`** on the protocol is called when the server stops (see [shutdown](#processes-signals-and-shutdown)).
-- **Exceptions in a protocol callback** print a traceback. They abort that connection, or drop that datagram; the worker keeps running. Only `SystemExit` and `KeyboardInterrupt` stop the worker, also from the program's own signal handlers, which run in workers as they would anywhere else.
+- **Exceptions in a protocol callback** print a traceback. They abort that connection, or drop that datagram; the worker keeps running. Only `SystemExit` and `KeyboardInterrupt` stop the worker, also from the program's own signal handlers, which run in worker processes as they would anywhere else (in threads mode, on the supervising thread).
 - **Traceback output is rate-limited:** at most 10 tracebacks per 10 s per worker. The rest are counted, and the count is printed later, so clients can't flood the log.
 - **`connection_lost()` can come up to 5 s after `close()`** (or after `idle_timeout`, if that's shorter). The server sends FIN and waits for the client to close, because closing with unread input would make the kernel reset the connection and cut off the response.
 - **`sendto()` takes numeric addresses only**, because name resolution would block the loop. The send queue is capped at 1 MiB; beyond that, `error_received(OSError(ENOBUFS))` is called instead.
@@ -151,15 +158,39 @@ class Http:
       self.headerTimer.cancel()
 ```
 
-Transports and `call_later()` belong to the worker's loop thread, and calls that act on a connection raise `RuntimeError` from another thread. Plain getters such as `get_protocol()` and `get_extra_info("peername")` work anywhere. A worker thread (for example, one making a blocking database call) hands its result back like this:
+Transports and `call_later()` belong to the worker's loop thread, and calls that act on a connection raise `RuntimeError` from another thread. Plain getters such as `get_protocol()` and `get_extra_info("peername")` work anywhere. Another thread (for example, a pool thread making a blocking database call) hands its result back through the loop:
 
 ```python
-fastepoll.call_soon_threadsafe(transport.write, result)
+class Query:
+  def connection_made(self, transport):
+    self.transport, self.loop = transport, fastepoll.get_running_loop()
+
+  def data_received(self, data):
+    pool.submit(lookup, data).add_done_callback(lambda f: self.loop.call_soon_threadsafe(self.transport.write, f.result()))
 ```
+
+`fastepoll.call_soon_threadsafe()` does the same with the process's loop, but in threads mode a process runs several, so from other threads it raises `RuntimeError` there.
+
+## Threads mode
+
+`serve(..., threads=True)` runs the workers as threads of the calling process instead of as processes. On free-threaded Python (3.14t and newer) they run Python in parallel and share memory, so caches and connection pools can live in the process instead of in Redis. On other Pythons the GIL lets one thread at a time run Python, which suits testing more than serving.
+
+```python
+fastepoll.serve([fastepoll.TCP(App, None, 8000)], threads=True, idle_timeout=30, max_connections=10_000)
+```
+
+- **The calling thread supervises**, as the supervisor process does otherwise, so it must be the main thread: it handles signals and TLS reloads, and restarts a worker thread that ends (for example, on a `SystemExit` from a protocol). `workers=0` starts one thread per CPU, as with processes.
+  - The program's own signal handlers run on this thread too, as Python's always run on the main thread. An exception from one ends `serve()`, aborting the workers.
+  - A worker that can't be started, say for lack of file descriptors, is tried again every second.
+- **Shared state needs locks** where several workers read, change and write it back, as in any threaded program. Each protocol only ever runs on its own worker's thread.
+- **Transports belong to their worker's thread.** To write to another worker's connection, post to that worker's loop with its `call_soon_threadsafe()`, as above.
+- **One process:** a crash ends all the workers, so have systemd restart the service (`Restart=on-failure`). A worker thread stuck in a callback can't be killed: at the shutdown deadline it is left behind, `serve()` returns, and the process should then exit.
+- **Limits:** `max_connections` is per worker thread, and the `sendfile()` queue limit applies to the whole process.
+- **Forking** from a threaded process is unsafe in general, and Python warns about it. fastepoll still closes the server's sockets in the child.
 
 ## Processes, signals and shutdown
 
-- **Workers:** `workers=0` starts one process per CPU the server may run on (its CPU affinity, as `taskset` or a container sets it); `workers=1` runs in the calling process, which is handy for debugging. Workers share nothing, like PHP-FPM, so shared state belongs in Redis, a database or similar.
+- **Workers:** `workers=0` starts one process per CPU the server may run on (its CPU affinity, as `taskset` or a container sets it); `workers=1` runs in the calling process, which is handy for debugging. Workers share nothing, like PHP-FPM, so shared state belongs in Redis, a database or similar, unless they are threads ([threads mode](#threads-mode)).
 - **Accepting:** TCP and Unix listeners are shared by all workers, and only an idle worker is woken for a new connection.
 - **Crashes:** a worker that crashes is logged and restarted. Workers also exit if the supervisor dies.
 - **Forking:** a process `fork()`ed from a worker (a background job, `multiprocessing`) closes all of the server's sockets in itself. So it can't keep the port, or client connections, alive after the server is done with them.
@@ -180,10 +211,3 @@ ExecStart=/srv/app/venv/bin/python /srv/app/server.py
 LimitNOFILE=65536
 TimeoutStopSec=20
 ```
-
-## Not included yet
-
-- HTTP, including HTTP/2, belongs in a layer on top. ALPN is supported for it.
-- TLS client certificates (mTLS) and OCSP stapling.
-- A threads mode, for free-threaded Python.
-- Platforms other than Linux on x86-64.

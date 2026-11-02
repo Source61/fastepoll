@@ -1,2 +1,3 @@
+* Version 2.1.0: TLS client certificates (mTLS): TLS(client_ca=..., client_cert="required" or "optional"), with the client's certificate in get_extra_info("peercert"). serve(threads=True) runs the workers as threads of the calling process, for free-threaded Python, with wheels for CPython 3.14t and 3.15t. aarch64 (ARM64) Linux wheels.
 * Version 1.0.1: added required bool sync option to run(...) and run_forever(...). Sync set to False makes epoll \[potentially much\] faster, but calls to Python are executed by different threads resulting in different Python states when called by different threads, thus some apps require sync=True, others, like a HTTP server, probably does not.
 * Version 1.0.0: first public version
